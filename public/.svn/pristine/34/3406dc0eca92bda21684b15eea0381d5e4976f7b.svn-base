@@ -1,0 +1,161 @@
+#include <ysclass.h>
+#include <ysfitcircle.h>
+#include <ysglcpp.h>
+#include <ysglslcpp.h>
+
+#include <fslazywindow.h>
+
+
+class FsLazyWindowApplication : public FsLazyWindowApplicationBase
+{
+protected:
+	bool needRedraw;
+
+	YsVec2 cen;
+	double rad;
+	YsArray <YsVec2> pnt;
+
+	YsArray <float> pntVtxBuf;
+	YsArray <float> circleVtxBuf;
+
+public:
+	void RemakeVertexArray(void);
+
+	FsLazyWindowApplication();
+	virtual void BeforeEverything(int argc,char *argv[]);
+	virtual void GetOpenWindowOption(FsOpenWindowOption &OPT) const;
+	virtual void Initialize(int argc,char *argv[]);
+	virtual void Interval(void);
+	virtual void BeforeTerminate(void);
+	virtual void Draw(void);
+	virtual bool UserWantToCloseProgram(void);
+	virtual bool MustTerminate(void) const;
+	virtual long long int GetMinimumSleepPerInterval(void) const;
+	virtual bool NeedRedraw(void) const;
+};
+
+void FsLazyWindowApplication::RemakeVertexArray(void)
+{
+	pntVtxBuf.CleanUp();
+	circleVtxBuf.CleanUp();
+
+	for(auto p : pnt)
+	{
+		pntVtxBuf.Add(p.x());
+		pntVtxBuf.Add(p.y());
+	}
+
+	for(int angle=0; angle<360; angle+=12)
+	{
+		const double radian=(double)angle*YsPi/180.0;
+		const double c=cos(radian);
+		const double s=sin(radian);
+
+		circleVtxBuf.Add(cen.x()+rad*c);
+		circleVtxBuf.Add(cen.y()+rad*s);
+	}
+}
+
+FsLazyWindowApplication::FsLazyWindowApplication()
+{
+	needRedraw=false;
+}
+
+/* virtual */ void FsLazyWindowApplication::BeforeEverything(int argc,char *argv[])
+{
+}
+/* virtual */ void FsLazyWindowApplication::GetOpenWindowOption(FsOpenWindowOption &opt) const
+{
+	opt.x0=0;
+	opt.y0=0;
+	opt.wid=1200;
+	opt.hei=800;
+}
+/* virtual */ void FsLazyWindowApplication::Initialize(int argc,char *argv[])
+{
+	YsGLSLRenderer::CreateSharedRenderer();
+	cen=YsVec2::Origin();
+	rad=0.0;
+}
+/* virtual */ void FsLazyWindowApplication::Interval(void)
+{
+	auto key=FsInkey();
+	if(FSKEY_ESC==key)
+	{
+		SetMustTerminate(true);
+	}
+
+	int lb,mb,rb,mx,my;
+	auto evt=FsGetMouseEvent(lb,mb,rb,mx,my);
+	if(FSMOUSEEVENT_LBUTTONDOWN==evt)
+	{
+		YsVec2 p(mx,my);
+		pnt.Add(p);
+
+		YsFindLeastSquareFittingCircle(cen,rad,pnt);
+
+		RemakeVertexArray();
+	}
+
+	needRedraw=true;
+}
+/* virtual */ void FsLazyWindowApplication::BeforeTerminate(void)
+{
+}
+/* virtual */ void FsLazyWindowApplication::Draw(void)
+{
+	int wid,hei;
+	FsGetWindowSize(wid,hei);
+	glViewport(0,0,wid,hei);
+
+	needRedraw=false;
+
+	glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
+
+	{
+		YsGLSL2DRenderer renderer;
+		renderer.UseWindowCoordinateTopLeftAsOrigin();
+
+		GLfloat red[]={1,0,0,1};
+		GLfloat blue[]={0,0,1,1};
+
+		glEnable(GL_PROGRAM_POINT_SIZE);
+
+		renderer.SetUniformColor(blue);
+		renderer.SetUniformPointSize(10);
+		renderer.DrawVtx(GL_POINTS,pntVtxBuf.GetN()/2,pntVtxBuf);
+
+		renderer.SetUniformColor(red);
+		renderer.DrawVtx(GL_POINTS,circleVtxBuf.GetN()/2,circleVtxBuf);
+	}
+
+	FsSwapBuffers();
+}
+/* virtual */ bool FsLazyWindowApplication::UserWantToCloseProgram(void)
+{
+	return true; // Returning true will just close the program.
+}
+/* virtual */ bool FsLazyWindowApplication::MustTerminate(void) const
+{
+	return FsLazyWindowApplicationBase::MustTerminate();
+}
+/* virtual */ long long int FsLazyWindowApplication::GetMinimumSleepPerInterval(void) const
+{
+	return 10;
+}
+/* virtual */ bool FsLazyWindowApplication::NeedRedraw(void) const
+{
+	return needRedraw;
+}
+
+
+static FsLazyWindowApplication *appPtr=nullptr;
+
+/* static */ FsLazyWindowApplicationBase *FsLazyWindowApplicationBase::GetApplication(void)
+{
+	if(nullptr==appPtr)
+	{
+		appPtr=new FsLazyWindowApplication;
+	}
+	return appPtr;
+}

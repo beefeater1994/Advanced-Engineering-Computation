@@ -1,0 +1,3 @@
+add_executable(3dmaze_event_driven main.cpp)
+target_link_libraries(3dmaze_event_driven fslazywindow)
+

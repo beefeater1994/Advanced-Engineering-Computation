@@ -1,0 +1,114 @@
+#include "simplebitmap.h"
+#include "yspng.h"
+#include "yspngenc.h"
+
+
+
+SimpleBitmap::SimpleBitmap(const SimpleBitmap &incoming)
+{
+	CopyFrom(incoming);
+}
+
+SimpleBitmap &SimpleBitmap::operator=(const SimpleBitmap &from)
+{
+	CopyFrom(from);
+	return *this;
+}
+
+SimpleBitmap::SimpleBitmap(SimpleBitmap &&incoming)
+{
+	MoveFrom(incoming);
+}
+
+SimpleBitmap &SimpleBitmap::operator=(SimpleBitmap &&incoming)
+{
+	MoveFrom(incoming);
+	return *this;
+}
+
+bool SimpleBitmap::LoadPng(const char fn[])
+{
+	FILE *fp=fopen(fn,"rb");
+	if(nullptr!=fp)
+	{
+		auto tf=LoadPng(fp);
+		fclose(fp);
+		return tf;
+	}
+	return false;
+}
+
+bool SimpleBitmap::LoadPng(FILE *fp)
+{
+	YsRawPngDecoder png;
+	if(png.Decode(fp))
+	{
+		MoveFrom(png);
+		return true;
+	}
+	return false;
+}
+
+SimpleBitmap &SimpleBitmap::MoveFrom(class YsRawPngDecoder &png)
+{
+	SetDirect(png.wid,png.hei,png.rgba);
+	png.wid=0;
+	png.hei=0;
+	png.rgba=nullptr;
+	return *this;
+}
+
+SimpleBitmap SimpleBitmap::CutOut(int x0,int y0,int wid,int hei) const
+{
+	SimpleBitmap bmp;
+	SimpleBitmapTemplate <unsigned char,4>::CutOut(bmp,x0,y0,wid,hei,0);
+	return bmp;
+}
+
+void SimpleBitmap::Clear(unsigned char r,unsigned char g,unsigned char b,unsigned char a)
+{
+	auto bmpPtr=GetEditableBitmapPointer();
+	for(int i=0; i<GetWidth()*GetHeight(); ++i)
+	{
+		bmpPtr[i*4  ]=r;
+		bmpPtr[i*4+1]=g;
+		bmpPtr[i*4+2]=b;
+		bmpPtr[i*4+3]=a;
+	}
+}
+
+bool SimpleBitmap::SavePng(FILE *fp) const
+{
+	YsRawPngEncoder encoder;
+	if(encoder.EncodeToFile(fp,GetWidth(),GetHeight(),8,6,GetBitmapPointer()))
+	{
+		return true;
+	}
+	return false;
+}
+
+bool SimpleBitmap::operator==(const SimpleBitmap &bitmapB) const
+{
+	if(GetWidth()!=bitmapB.GetWidth() ||
+	   GetHeight()!=bitmapB.GetHeight())
+	{
+		return false;
+	}
+
+	auto bmpPtrA=GetBitmapPointer();
+	auto bmpPtrB=bitmapB.GetBitmapPointer();
+	for(int i=0; i<GetTotalNumComponent(); ++i)
+	{
+		if(bmpPtrA[i]!=bmpPtrB[i])
+		{
+			return false;
+		}
+	}
+
+	return true;
+}
+
+bool SimpleBitmap::operator!=(const SimpleBitmap &bitmapB) const
+{
+	return !(*this==bitmapB);
+}

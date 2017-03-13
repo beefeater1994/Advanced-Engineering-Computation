@@ -1,0 +1,3 @@
+add_executable(floodfill_event_driven main.cpp)
+target_link_libraries(floodfill_event_driven fslazywindow)
+

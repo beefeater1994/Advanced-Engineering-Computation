@@ -1,0 +1,7 @@
+add_subdirectory("batch/ysbitmap/cutout")
+
+add_subdirectory("interactive/ysgl")
+add_subdirectory("interactive/yssystemfont/rendering")
+add_subdirectory("interactive/ysclass/fitcircle")
+add_subdirectory("interactive/ysclass/YsCheckTriangleIntersection")
+add_subdirectory("interactive/fssimplefiledialog/single_select")
